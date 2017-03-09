@@ -31,27 +31,33 @@ namespace android {
 namespace vold {
 namespace exfat {
 
-static const char* kMkfsPath = "/system/bin/mkfs.exfat";
-static const char* kFsckPath = "/system/bin/fsck.exfat";
 #ifdef CONFIG_KERNEL_HAVE_EXFAT
 static const char* kMountPath = "/system/bin/mount";
 #else
+static const char* kMkfsPath = "/system/bin/mkfs.exfat";
+static const char* kFsckPath = "/system/bin/fsck.exfat";
 static const char* kMountPath = "/system/bin/mount.exfat";
 #endif
 
 bool IsSupported() {
-    return access(kMkfsPath, X_OK) == 0
+    return access(kMountPath, X_OK) == 0
+#ifndef CONFIG_KERNEL_HAVE_EXFAT
+            && access(kMkfsPath, X_OK) == 0
             && access(kFsckPath, X_OK) == 0
-            && access(kMountPath, X_OK) == 0
+#endif
             && IsFilesystemSupported("exfat");
 }
 
 status_t Check(const std::string& source) {
+#ifndef CONFIG_KERNEL_HAVE_EXFAT
     std::vector<std::string> cmd;
     cmd.push_back(kFsckPath);
     cmd.push_back(source);
 
     return ForkExecvp(cmd, sFsckContext);
+#else
+    return EXIT_SUCCESS;
+#endif
 }
 
 status_t Mount(const std::string& source, const std::string& target, bool ro,
@@ -86,11 +92,15 @@ status_t Mount(const std::string& source, const std::string& target, bool ro,
 }
 
 status_t Format(const std::string& source) {
+#ifndef CONFIG_KERNEL_HAVE_EXFAT
     std::vector<std::string> cmd;
     cmd.push_back(kMkfsPath);
     cmd.push_back(source);
 
     return ForkExecvp(cmd);
+#else
+    return EXIT_FAILURE;
+#endif
 }
 
 }  // namespace exfat
